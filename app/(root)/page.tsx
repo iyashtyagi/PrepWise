@@ -13,9 +13,17 @@ import {
 async function Home() {
   const user = await getCurrentUser();
 
+  if (!user?.id) {
+    return (
+      <div>
+        <h2>Please sign in to view your interviews.</h2>
+      </div>
+    );
+  }
+
   const [userInterviews, allInterview] = await Promise.all([
-    getInterviewsByUserId(user?.id!),
-    getLatestInterviews({ userId: user?.id! }),
+    getInterviewsByUserId(user.id),
+    getLatestInterviews({ userId: user.id }),
   ]);
 
   const hasPastInterviews = userInterviews?.length! > 0;
@@ -52,7 +60,7 @@ async function Home() {
             userInterviews?.map((interview) => (
               <InterviewCard
                 key={interview.id}
-                userId={user?.id}
+                userId={user.id}
                 interviewId={interview.id}
                 role={interview.role}
                 type={interview.type}
@@ -74,7 +82,7 @@ async function Home() {
             allInterview?.map((interview) => (
               <InterviewCard
                 key={interview.id}
-                userId={user?.id}
+                userId={user.id}
                 interviewId={interview.id}
                 role={interview.role}
                 type={interview.type}
