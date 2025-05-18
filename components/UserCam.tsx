@@ -17,11 +17,25 @@ const TRIANGULATION = [
 
 interface UserCamProps {
   isMaskEnable?: boolean;
+  setUserCameraDetails: React.Dispatch<React.SetStateAction<UserCamDataProps>>;
 }
 
-const UserCam = ({ isMaskEnable = false }: UserCamProps) => {
+const UserCam = ({ isMaskEnable = false, setUserCameraDetails }: UserCamProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const userCameraDetailsRef = useRef<UserCamDataProps>({
+    frame: 0,
+    confidenceLevel: 0,
+    emotions: {
+      happy: 0,
+      sad: 0,
+      angry: 0,
+      surprised: 0,
+      neutral: 0,
+      fearful: 0,
+      disgusted: 0,
+    },
+  });
 
   useEffect(() => {
     let stream: MediaStream;
@@ -60,7 +74,8 @@ const UserCam = ({ isMaskEnable = false }: UserCamProps) => {
         const video = videoRef.current;
         const result = await faceapi
           .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks();
+          .withFaceLandmarks()
+          .withFaceExpressions();
 
         if (canvasRef.current && video) {
           const rect = video.getBoundingClientRect();
@@ -72,59 +87,102 @@ const UserCam = ({ isMaskEnable = false }: UserCamProps) => {
           const ctx = canvasRef.current.getContext("2d");
           ctx?.clearRect(0, 0, width, height);
 
-          if (result && isMaskEnable) {
-            const landmarks = result.landmarks;
-            const scaleX = width / video.videoWidth;
-            const scaleY = height / video.videoHeight;
+          // Only update userCameraDetails if face is detected
+          if (result) {
+            // Calculate confidence level as detection score
+            const confidenceLevel = result.detection.score;
 
-            // Draw a dense mask over the face using all 68 landmark points
-            const faceOutline = landmarks.positions; // Use all points for dense mask
+            // Get emotions from faceapi
+            const emotions = result.expressions || {};
 
-            // Draw a thin, soft green mesh line (optional, keep if you want outline)
-            if (faceOutline && faceOutline.length > 0) {
+            // Prepare new details
+            const prev = userCameraDetailsRef.current;
+            let newDetails: UserCamDataProps;
+
+            if (prev.frame === 0) {
+              newDetails = {
+                frame: 1,
+                confidenceLevel,
+                emotions: {
+                  happy: emotions.happy || 0,
+                  sad: emotions.sad || 0,
+                  angry: emotions.angry || 0,
+                  surprised: emotions.surprised || 0,
+                  neutral: emotions.neutral || 0,
+                  fearful: emotions.fearful || 0,
+                  disgusted: emotions.disgusted || 0,
+                },
+              };
+            } else {
+              newDetails = {
+                frame: prev.frame + 1,
+                confidenceLevel: (prev.confidenceLevel + confidenceLevel) / 2,
+                emotions: {
+                  happy: (prev.emotions.happy + (emotions.happy || 0)) / 2,
+                  sad: (prev.emotions.sad + (emotions.sad || 0)) / 2,
+                  angry: (prev.emotions.angry + (emotions.angry || 0)) / 2,
+                  surprised: (prev.emotions.surprised + (emotions.surprised || 0)) / 2,
+                  neutral: (prev.emotions.neutral + (emotions.neutral || 0)) / 2,
+                  fearful: (prev.emotions.fearful + (emotions.fearful || 0)) / 2,
+                  disgusted: (prev.emotions.disgusted + (emotions.disgusted || 0)) / 2,
+                },
+              };
+            }
+
+            // Update the ref and call the setter
+            userCameraDetailsRef.current = newDetails;
+            setUserCameraDetails(newDetails);
+
+            // Draw landmarks if enabled
+            if (isMaskEnable) {
+              const landmarks = result.landmarks;
+              const scaleX = width / video.videoWidth;
+              const scaleY = height / video.videoHeight;
+              const faceOutline = landmarks.positions;
+
+              if (faceOutline && faceOutline.length > 0) {
+                ctx!.save();
+                ctx!.beginPath();
+                faceOutline.forEach((pt, idx) => {
+                  const x = pt.x * scaleX;
+                  const y = pt.y * scaleY;
+                  if (idx === 0) ctx!.moveTo(x, y);
+                  else ctx!.lineTo(x, y);
+                });
+                ctx!.closePath();
+                ctx!.strokeStyle = "rgba(50, 220, 120, 0.7)";
+                ctx!.lineWidth = 1.2;
+                ctx!.shadowColor = "rgba(0,0,0,0.15)";
+                ctx!.shadowBlur = 2;
+                ctx!.stroke();
+                ctx!.restore();
+              }
+
               ctx!.save();
-              ctx!.beginPath();
-              faceOutline.forEach((pt, idx) => {
-                const x = pt.x * scaleX;
-                const y = pt.y * scaleY;
-                if (idx === 0) ctx!.moveTo(x, y);
-                else ctx!.lineTo(x, y);
+              ctx!.strokeStyle = "rgba(0,255,128,0.5)";
+              ctx!.lineWidth = 1;
+              for (let i = 0; i < TRIANGULATION.length; i += 3) {
+                const a = faceOutline[TRIANGULATION[i]];
+                const b = faceOutline[TRIANGULATION[i + 1]];
+                const c = faceOutline[TRIANGULATION[i + 2]];
+                ctx!.beginPath();
+                ctx!.moveTo(a.x * scaleX, a.y * scaleY);
+                ctx!.lineTo(b.x * scaleX, b.y * scaleY);
+                ctx!.lineTo(c.x * scaleX, c.y * scaleY);
+                ctx!.closePath();
+                ctx!.stroke();
+              }
+              ctx!.restore();
+
+              ctx!.save();
+              ctx!.fillStyle = "rgba(0,255,128,0.95)";
+              faceOutline.forEach((pt) => {
+                ctx!.beginPath();
+                ctx!.arc(pt.x * scaleX, pt.y * scaleY, 2, 0, 2 * Math.PI);
+                ctx!.fill();
               });
-              ctx!.closePath();
-              ctx!.strokeStyle = "rgba(50, 220, 120, 0.7)";
-              ctx!.lineWidth = 1.2;
-              ctx!.shadowColor = "rgba(0,0,0,0.15)";
-              ctx!.shadowBlur = 2;
-              ctx!.stroke();
               ctx!.restore();
             }
-
-            // Draw mesh triangles (true mesh)
-            ctx!.save();
-            ctx!.strokeStyle = "rgba(0,255,128,0.5)";
-            ctx!.lineWidth = 1;
-            for (let i = 0; i < TRIANGULATION.length; i += 3) {
-              const a = faceOutline[TRIANGULATION[i]];
-              const b = faceOutline[TRIANGULATION[i + 1]];
-              const c = faceOutline[TRIANGULATION[i + 2]];
-              ctx!.beginPath();
-              ctx!.moveTo(a.x * scaleX, a.y * scaleY);
-              ctx!.lineTo(b.x * scaleX, b.y * scaleY);
-              ctx!.lineTo(c.x * scaleX, c.y * scaleY);
-              ctx!.closePath();
-              ctx!.stroke();
-            }
-            ctx!.restore();
-
-            // Draw mesh vertices (points)
-            ctx!.save();
-            ctx!.fillStyle = "rgba(0,255,128,0.95)";
-            faceOutline.forEach((pt) => {
-              ctx!.beginPath();
-              ctx!.arc(pt.x * scaleX, pt.y * scaleY, 2, 0, 2 * Math.PI);
-              ctx!.fill();
-            });
-            ctx!.restore();
           }
         }
       }
@@ -132,7 +190,7 @@ const UserCam = ({ isMaskEnable = false }: UserCamProps) => {
 
     interval = setInterval(analyze, 200);
     return () => clearInterval(interval);
-  }, [isMaskEnable]);
+  }, [isMaskEnable, setUserCameraDetails]);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>

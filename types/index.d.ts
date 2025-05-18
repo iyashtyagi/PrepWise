@@ -25,10 +25,25 @@ interface Interview {
   finalized: boolean;
 }
 
+interface UserCamDataProps {
+  frame: number,
+  confidenceLevel: number,
+  emotions: {
+    happy: number;
+    sad: number;
+    angry: number;
+    surprised: number;
+    neutral: number;
+    fearful: number;
+    disgusted: number;
+  }
+}
+
 interface CreateFeedbackParams {
   interviewId: string;
   userId: string;
   transcript: { role: string; content: string }[];
+  userCameraDetails: UserCamDataProps;
   feedbackId?: string;
 }
 

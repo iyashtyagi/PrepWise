@@ -36,6 +36,19 @@ const Agent = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isFaceMaskEnable, setIsFaceMaskEnable] = useState(false);
   const [lastMessage, setLastMessage] = useState<string>("");
+  const [userCameraDetails, setUserCameraDetails] = useState<UserCamDataProps>({
+    frame: 0,
+    confidenceLevel: 0,
+    emotions: {
+      happy: 0,
+      sad: 0,
+      angry: 0,
+      surprised: 0,
+      neutral: 0,
+      fearful: 0,
+      disgusted: 0,
+    },
+  });
 
   useEffect(() => {
     const onCallStart = () => {
@@ -96,6 +109,7 @@ const Agent = ({
         interviewId: interviewId!,
         userId: userId!,
         transcript: messages,
+        userCameraDetails,
         feedbackId,
       });
 
@@ -147,6 +161,10 @@ const Agent = ({
     vapi.stop();
   };
 
+  useEffect(() => {
+    console.log("User Camera Details: ", userCameraDetails);
+  }, [userCameraDetails]);
+
   return (
     <>
       <div className="call-view">
@@ -168,7 +186,7 @@ const Agent = ({
         {/* User Profile Card */}
         <div className="card-border">
           <div className="card-content">
-            <UserCam isMaskEnable={isFaceMaskEnable} />
+            <UserCam isMaskEnable={isFaceMaskEnable} setUserCameraDetails={setUserCameraDetails} />
             <h3>{userName}</h3>
             </div>
         </div>

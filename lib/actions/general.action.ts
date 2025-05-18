@@ -7,7 +7,7 @@ import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
 
 export async function createFeedback(params: CreateFeedbackParams) {
-  const { interviewId, userId, transcript, feedbackId } = params;
+  const { interviewId, userId, transcript, userCameraDetails, feedbackId } = params;
 
   try {
     const formattedTranscript = transcript
@@ -16,6 +16,23 @@ export async function createFeedback(params: CreateFeedbackParams) {
           `- ${sentence.role}: ${sentence.content}\n`
       )
       .join("");
+
+    // Prepare camera details string for the prompt if available
+    let cameraDetailsString = "";
+    if (userCameraDetails) {
+      cameraDetailsString = `
+User Camera Details (average over session):
+- Confidence Level: ${userCameraDetails.confidenceLevel?.toFixed(2) ?? "N/A"}
+- Emotions:
+  - Happy: ${userCameraDetails.emotions?.happy?.toFixed(2) ?? "N/A"}
+  - Sad: ${userCameraDetails.emotions?.sad?.toFixed(2) ?? "N/A"}
+  - Angry: ${userCameraDetails.emotions?.angry?.toFixed(2) ?? "N/A"}
+  - Surprised: ${userCameraDetails.emotions?.surprised?.toFixed(2) ?? "N/A"}
+  - Neutral: ${userCameraDetails.emotions?.neutral?.toFixed(2) ?? "N/A"}
+  - Fearful: ${userCameraDetails.emotions?.fearful?.toFixed(2) ?? "N/A"}
+  - Disgusted: ${userCameraDetails.emotions?.disgusted?.toFixed(2) ?? "N/A"}
+`;
+    }
 
     const { object } = await generateObject({
       model: google("gemini-2.0-flash-001", {
@@ -26,6 +43,8 @@ export async function createFeedback(params: CreateFeedbackParams) {
         You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
         Transcript:
         ${formattedTranscript}
+        User non-verbal Details:
+        ${cameraDetailsString}
 
         Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
         - **Communication Skills**: Clarity, articulation, structured responses.
@@ -46,6 +65,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
       strengths: object.strengths,
       areasForImprovement: object.areasForImprovement,
       finalAssessment: object.finalAssessment,
+      userCameraDetails: userCameraDetails ?? null, // Save camera details in DB as well
       createdAt: new Date().toISOString(),
     };
 
