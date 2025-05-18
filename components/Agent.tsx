@@ -34,6 +34,7 @@ const Agent = ({
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [messages, setMessages] = useState<SavedMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isFaceMaskEnable, setIsFaceMaskEnable] = useState(false);
   const [lastMessage, setLastMessage] = useState<string>("");
 
   useEffect(() => {
@@ -167,7 +168,7 @@ const Agent = ({
         {/* User Profile Card */}
         <div className="card-border">
           <div className="card-content">
-            <UserCam />
+            <UserCam isMaskEnable={isFaceMaskEnable} />
             <h3>{userName}</h3>
             </div>
         </div>
@@ -189,7 +190,7 @@ const Agent = ({
         </div>
       )}
 
-      <div className="w-full flex justify-center">
+      <div className="w-full flex justify-center gap-x-8">
         {callStatus !== "ACTIVE" ? (
           <button className="relative btn-call" onClick={() => handleCall()}>
             <span
@@ -210,6 +211,9 @@ const Agent = ({
             End
           </button>
         )}
+          <button className="btn-primary" onClick={() => setIsFaceMaskEnable(!isFaceMaskEnable)}>
+            {isFaceMaskEnable ? "Disable Face Mask" : "Enable Face Mask"}
+          </button>
       </div>
     </>
   );
