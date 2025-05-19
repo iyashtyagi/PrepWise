@@ -7,7 +7,7 @@ import InterviewCard from "@/components/InterviewCard";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import {
   getInterviewsByUserId,
-  getLatestInterviews,
+  getFeedbackByInterviewId,
 } from "@/lib/actions/general.action";
 
 async function Home() {
@@ -21,13 +21,28 @@ async function Home() {
     );
   }
 
-  const [userInterviews, allInterview] = await Promise.all([
-    getInterviewsByUserId(user.id),
-    getLatestInterviews({ userId: user.id }),
-  ]);
+  const userInterviews = await getInterviewsByUserId(user.id);
 
-  const hasPastInterviews = userInterviews?.length! > 0;
-  const hasUpcomingInterviews = allInterview?.length! > 0;
+  // Separate interviews into completed (with feedback) and pending (without feedback)
+  const completed: Interview[] = [];
+  const pending: Interview[] = [];
+
+  if (userInterviews && userInterviews.length > 0) {
+    // Fetch feedbacks for all interviews in parallel
+    const feedbacks = await Promise.all(
+      userInterviews.map((interview) =>
+        getFeedbackByInterviewId({ interviewId: interview.id, userId: user.id })
+      )
+    );
+
+    userInterviews.forEach((interview, idx) => {
+      if (feedbacks[idx]) {
+        completed.push(interview);
+      } else {
+        pending.push(interview);
+      }
+    });
+  }
 
   return (
     <>
@@ -39,7 +54,7 @@ async function Home() {
           </p>
 
           <Button asChild className="btn-primary max-sm:w-full">
-            <Link href="/interview">Start an Interview</Link>
+            <Link href="/interview">Create an Interview</Link>
           </Button>
         </div>
 
@@ -53,11 +68,10 @@ async function Home() {
       </section>
 
       <section className="flex flex-col gap-6 mt-8">
-        <h2>Your Interviews</h2>
-
+        <h2>Pending Interviews</h2>
         <div className="interviews-section">
-          {hasPastInterviews ? (
-            userInterviews?.map((interview) => (
+          {pending.length > 0 ? (
+            pending.map((interview) => (
               <InterviewCard
                 key={interview.id}
                 coverImage={interview.coverImage}
@@ -76,11 +90,10 @@ async function Home() {
       </section>
 
       <section className="flex flex-col gap-6 mt-8">
-        <h2>Take Interviews</h2>
-
+        <h2>Completed Interviews</h2>
         <div className="interviews-section">
-          {hasUpcomingInterviews ? (
-            allInterview?.map((interview) => (
+          {completed.length > 0 ? (
+            completed.map((interview) => (
               <InterviewCard
                 key={interview.id}
                 userId={user.id}
@@ -93,7 +106,7 @@ async function Home() {
               />
             ))
           ) : (
-            <p>There are no interviews available</p>
+            <p>There are no completed interviews yet</p>
           )}
         </div>
       </section>
