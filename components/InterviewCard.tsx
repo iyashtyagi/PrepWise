@@ -11,6 +11,7 @@ import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
 const InterviewCard = async ({
   interviewId,
   userId,
+  coverImage,
   role,
   type,
   techstack,
@@ -53,7 +54,7 @@ const InterviewCard = async ({
 
           {/* Cover Image */}
           <Image
-            src={getRandomInterviewCover()}
+            src={coverImage || getRandomInterviewCover()}
             alt="cover-image"
             width={90}
             height={90}
