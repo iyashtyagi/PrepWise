@@ -129,6 +129,7 @@ Follow the structured question flow:
 
 Engage naturally & react appropriately:
 Listen actively to responses and acknowledge them before moving forward.
+Don't ask for code examples as it is a voice based interview.
 Ask brief follow-up questions if a response is vague or requires more detail.
 Keep the conversation flowing smoothly while maintaining control.
 Be professional, yet warm and welcoming:
@@ -175,6 +176,11 @@ export const feedbackSchema = z.object({
     }),
     z.object({
       name: z.literal("Cultural Fit"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+    z.object({
+      name: z.literal("Non-Verbal Communication"),
       score: z.number(),
       comment: z.string(),
     }),
